@@ -26,7 +26,7 @@ int sendPDU(int clientSocket, uint8_t * dataBuffer, int lengthOfData){ //returns
         exit(-1);
     }
 
-    uint16_t netOrderLen = htons(lengthOfData); 
+    uint16_t netOrderLen = htons(pduLength); 
     memcpy(pduBuff, &netOrderLen, 2); 
     memcpy(pduBuff + 2, dataBuffer, lengthOfData);
 
@@ -62,7 +62,9 @@ int recvPDU(int socketNumber, uint8_t * dataBuffer, int bufferSize){
     }
 
     memcpy(&netLen, lenBuff, 2);
-    uint16_t hostDataLength = ntohs(netLen);
+    uint16_t totalPDULen = ntohs(netLen);
+
+    int hostDataLength = totalPDULen - 2;
 
     if (hostDataLength > bufferSize){
         fprintf(stderr, "Buffer too small for received data\n");
