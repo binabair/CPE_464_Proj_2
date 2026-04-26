@@ -16,14 +16,39 @@
 //remove from table
 
 //struct
-struct handleEntry {
+typedef struct {
     char * handleName;
     int socketNum;
     int valid;
-};
+} HandleEntry;
+
+typedef struct {
+    HandleEntry *entries;
+    int capacity;
+    int count;
+} HandleTable;
 
 //make it
-void createHandleTable(struct handleEntry firstHandle) {
-    struct handleEntry *handleTable = malloc(256 * sizeof(struct handleEntry));
-    handleTable[0] = firstHandle;
+HandleTable createHandleTable(int size) {
+    HandleTable currentTable;
+    currentTable.entries = malloc(size * sizeof(HandleEntry));
+    currentTable.capacity = size;
+    currentTable.count = 0;
+    return currentTable;
 }
+
+//add
+int addHandleEntry(HandleEntry handle, HandleTable *table){
+
+    //check if handle already exists - check by name cause socket nums are always unique
+    for (int i=0; i < table->count; i++){
+        if (table->entries[i].handleName == handle.handleName){
+            printf("Handle already in use: %s", handle.handleName);
+            return -1;
+        }
+    }
+    //check length
+    if ()
+}
+
+
