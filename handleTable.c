@@ -17,5 +17,13 @@
 
 //struct
 struct handleEntry {
-    
+    char * handleName;
+    int socketNum;
+    int valid;
+};
+
+//make it
+void createHandleTable(struct handleEntry firstHandle) {
+    struct handleEntry *handleTable = malloc(256 * sizeof(struct handleEntry));
+    handleTable[0] = firstHandle;
 }
