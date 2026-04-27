@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <stdbool.h>
 
 #include "handleTable.h"
 
@@ -14,6 +15,7 @@
 //make the table
 //add to table - check if resize is necessary (motherfuckerrrr thatll be two fxns)
 //remove from table
+//lookup - both of em
 
 //struct
 typedef struct {
@@ -92,4 +94,32 @@ int expandHandleTable(HandleTable *table){
     return 0;
 }    
 
+//remove from table
+int removeHandleEntry(HandleEntry handle, HandleTable *table){
+    for (int i = 0; i < table->count; i++){
+        if (table->entries->socketNum == handle.socketNum){
+            table->entries[i].valid = -1;
+        }
+    }
+}
+
+//lookup socketnum
+bool lookUpHandle (char * handleName, HandleTable *table){
+    for (int i = 0; i < table->count; i++){
+        if (table->entries->handleName == handleName){
+            return true;
+        }
+    }
+    return false;
+}
+
+//lookup handlename
+bool lookUpHandle (int socketNum, HandleTable *table){
+    for (int i = 0; i < table->count; i++){
+        if (table->entries->socketNum == socketNum){
+            return true;
+        }
+    }
+    return false;
+}
 
