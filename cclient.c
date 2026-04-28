@@ -38,7 +38,7 @@ void sendToServer(int socketNum)
 {
 	uint8_t buffer[MAXBUF];   //data buffer
 	int sendLen = 0;        //amount of data to send
-	int sent = 0;            //actual amount of data sent/* get the data and send it   */
+	int sent = 0;            //actual amount of data sent
 	int recvBytes = 0;
 	
 	sendLen = readFromStdin(buffer);
@@ -72,20 +72,25 @@ void sendToServer(int socketNum)
 //%M - send to specific destination, %B - broadcast, %C - send to some, not all,
 //%L - list all handlesknown by server
 
-void MCall(){
+void mCall(){
 
 }
 
-void BCall(){
+void bCall(){
 
 }
 
-void CCall(){
+void cCall(){
 
 }
 
-void LCall(){
+void lCall(HandleTable *table){
 	//
+	for (int i = 0; i < table->count; i++){
+		//Give this to Flag = 12, whever the hell that means
+	}
+
+
 }
 
 
@@ -98,7 +103,7 @@ int readFromStdin(uint8_t * buffer)
 	
 	// Important you don't input more characters than you have space 
 	buffer[0] = '\0';
-	printf("Enter data: ");
+	printf("$: "); //fancy fancy
 	while (inputLen < (MAXBUF - 1) && aChar != '\n')
 	{
 		aChar = getchar();
@@ -112,14 +117,28 @@ int readFromStdin(uint8_t * buffer)
 	// Null terminate the string
 	buffer[inputLen] = '\0';
 	inputLen++;
+
+	//string of if statements pulled from the depths of ya mums booty
+	if((buffer[1] == 'm') || (buffer[1] == 'M')){
+		mCall();
+	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
+		bCall();
+	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
+		cCall();
+	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
+		lCall();
+	}
 	
+
+
+
 	return inputLen;
 }
 
 void checkArgs(int argc, char * argv[]) 
 {
 	/* check command line arguments  */
-	if (argc != 3)
+	if (argc != 4) //up this to accomodate new run command
 	{
 		printf("usage: %s host-name port-number \n", argv[0]);
 		exit(1);
