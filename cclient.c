@@ -20,6 +20,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #include "networks.h"
 #include "safeUtil.h"
@@ -29,31 +30,48 @@
 #define MAXBUF 1024
 #define DEBUG_FLAG 1
 
-void sendToServer(int socketNum);
+void sendToServer(char * handleName, int socketNum);
 int readFromStdin(uint8_t * buffer);
 void checkArgs(int argc, char * argv[]);
 
 
-void sendToServer(int socketNum)
+void sendToServer(char * handleName, int socketNum)
 {
 	uint8_t buffer[MAXBUF];   //data buffer
-	int sendLen = 0;        //amount of data to send
-	int sent = 0;            //actual amount of data sent
+	int stdinLen = 0;        //amount of data to send
 	int recvBytes = 0;
+	int enterHandle;
+
+	//make handle table and add socket and handle
+	HandleTable table1 = createHandleTable(256);
+	if ((enterHandle = addHandleEntry(handleName, socketNum, table1)) == -1){
+		perror("error adding handle");
+	}
 	
-	sendLen = readFromStdin(buffer);
-	printf("read: %s string len: %d (including null)\n", buffer, sendLen);
+	stdinLen = readFromStdin(buffer);
+	//printf("read: %s string len: %d (including null)\n", buffer, sendLen);
+
+	//string of if statements pulled from the depths
+	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
+		mCall(buffer, &table1);
+	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
+		bCall();
+	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
+		cCall();
+	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
+		lCall(&table1);
+	}
 	
-	sent = sendPDU(socketNum, buffer, sendLen);
+	//sent = sendPDU(socketNum, buffer, sendLen);
 
 	// sent =  safeSend(socketNum, buffer, sendLen, 0);
-	if (sent < 0)
-	{
-		perror("send call");
-		exit(-1);
-	}
+	// if (sent < 0)
+	// {
+	// 	perror("send call");
+	// 	exit(-1);
+	// }
 
-	printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
+	// printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
 	
 	// just for debugging, recv a message from the server to prove it works.
 	recvBytes = recvPDU(socketNum, buffer, MAXBUF);
@@ -72,26 +90,7 @@ void sendToServer(int socketNum)
 //%M - send to specific destination, %B - broadcast, %C - send to some, not all,
 //%L - list all handlesknown by server
 
-void mCall(){
 
-}
-
-void bCall(){
-
-}
-
-void cCall(){
-
-}
-
-void lCall(HandleTable *table){
-	//
-	for (int i = 0; i < table->count; i++){
-		//Give this to Flag = 12, whever the hell that means
-	}
-
-
-}
 
 
 int readFromStdin(uint8_t * buffer)
@@ -118,20 +117,6 @@ int readFromStdin(uint8_t * buffer)
 	buffer[inputLen] = '\0';
 	inputLen++;
 
-	//string of if statements pulled from the depths of ya mums booty
-	if((buffer[1] == 'm') || (buffer[1] == 'M')){
-		mCall();
-	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
-		bCall();
-	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
-		cCall();
-	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
-		lCall();
-	}
-	
-
-
-
 	return inputLen;
 }
 
@@ -152,12 +137,10 @@ int main(int argc, char * argv[])
 	checkArgs(argc, argv);
 
 	/* set up the TCP Client socket  */
-	socketNum = tcpClientSetup(argv[1], argv[2], DEBUG_FLAG);
-
-	
+	socketNum = tcpClientSetup(argv[2], argv[3], DEBUG_FLAG);
 	
 	while(1){
-		sendToServer(socketNum);
+		sendToServer(argv[1], socketNum);
 	}
 	
 	close(socketNum);
