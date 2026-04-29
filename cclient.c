@@ -87,12 +87,6 @@ void sendToServer(char * handleName, int socketNum)
 	
 }
 
-//%M - send to specific destination, %B - broadcast, %C - send to some, not all,
-//%L - list all handlesknown by server
-
-
-
-
 int readFromStdin(uint8_t * buffer)
 {
 	char aChar = 0;

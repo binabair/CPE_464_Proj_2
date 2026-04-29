@@ -25,6 +25,7 @@
 #include "safeUtil.h"
 #include "sendRecvPDU.h"
 #include "pollLib.h"
+#include "handleTable.h"
 
 #define MAXBUF 1024
 #define DEBUG_FLAG 1
@@ -73,8 +74,14 @@ void serverControl(int mainServerSocket){
 }
 
 void addNewSocket(int mainServerSocket){
+    bool existingSocket;
     int clientSocket = tcpAccept(mainServerSocket, DEBUG_FLAG);
     addToPollSet(clientSocket);
+    existingSocket = lookUpSocket(clientSocket);
+    if (existingSocket == false) {
+        addHandleEntry()
+    }
+
 }
 
 void processClient(int clientSocket){

@@ -11,6 +11,10 @@
 
 #include "handleTable.h"
 
+//make global var of HandleTable
+//global HandleTable
+HandleTable globalTable;
+
 //struct for handle entries
 //make the table
 //add to table - check if resize is necessary (motherfuckerrrr thatll be two fxns)
@@ -52,65 +56,65 @@ HandleTable createHandleTable(int size) {
     return currentTable;
 }
 
-//add
-int addHandleEntry(char *handleName, int socketNum, HandleTable *table){
+//add - returns -1 on failure, 0 on success
+int addHandleEntry(char *handleName, int socketNum){
 
     //check if handle already exists - check by name cause socket nums are always unique
-    for (int i=0; i < table->count; i++){
-        if ((strcmp(table->entries[i].handleName, handleName) == 0) && (table->entries[i].valid == 1)){
+    for (int i=0; i < globalTable.count; i++){
+        if ((strcmp(globalTable.entries[i].handleName, handleName) == 0) && (globalTable.entries[i].valid == 1)){
             printf("Handle already in use: %s\n", handleName);
             return -1;
         }
     }
 
     //check length - if not enough room, call expand and double size
-    if (table->count == table->capacity){
-        int expansion = expandHandleTable(table);
+    if (globalTable.count == globalTable.capacity){
+        int expansion = expandHandleTable();
         if (expansion == -1){
             return -1;
         }
     }
 
     //put in new entry, increment count and return
-    strncpy(table->entries[table->count].handleName, handleName, 99);
-    table->entries[table->count].handleName[99] = '\0';
-    table->entries[table->count].socketNum = socketNum;
-    table->entries[table->count].valid = 1;
-    table->count ++;
+    strncpy(globalTable.entries[globalTable.count].handleName, handleName, 99);
+    globalTable.entries[globalTable.count].handleName[99] = '\0';
+    globalTable.entries[globalTable.count].socketNum = socketNum;
+    globalTable.entries[globalTable.count].valid = 1;
+    globalTable.count ++;
 
     return 0;
 }
 
 //resize
-int expandHandleTable(HandleTable *table){
-    int newCapacity = table->capacity *2;
+int expandHandleTable(){
+    int newCapacity = globalTable.capacity *2;
 
-    HandleEntry *temp = realloc(table->entries, newCapacity * sizeof(HandleEntry));
+    HandleEntry *temp = realloc(globalTable.entries, newCapacity * sizeof(HandleEntry));
     if (temp == NULL){
         perror("realloc failed, sincerly the expandHandleTable fxn");
         return -1;
     }
     
-    table->entries = temp;
+    globalTable.entries = temp;
 
     //prevent garbage values
-    for (int i = table->capacity; i < newCapacity; i++){
-        table->entries[i].valid = 0;
-        table->entries[i].socketNum = -1;
-        table->entries[i].handleName[0] = '\0';
+    for (int i = globalTable.capacity; i < newCapacity; i++){
+        globalTable.entries[i].valid = 0;
+        globalTable.entries[i].socketNum = -1;
+        globalTable.entries[i].handleName[0] = '\0';
     }
 
-    table->capacity = newCapacity;
+    globalTable.capacity = newCapacity;
     return 0;
 }    
 
 //remove from table
-int removeHandleEntry(HandleEntry handle, HandleTable *table){
-    for (int i = 0; i < table->count; i++){
-        if (table->entries[i].socketNum == handle.socketNum){
-            table->entries[i].valid = 0;
-            table->entries[i].socketNum = -1;
-            table->entries[i].handleName[0] = '\0';
+int removeHandleEntry(HandleEntry handle){
+    for (int i = 0; i < globalTable.count; i++){
+        if (globalTable.entries[i].socketNum == handle.socketNum){
+            globalTable.entries[i].valid = 0;
+            globalTable.entries[i].socketNum = -1;
+            globalTable.entries[i].handleName[0] = '\0';
             return 0;
         }
     }
@@ -118,9 +122,9 @@ int removeHandleEntry(HandleEntry handle, HandleTable *table){
 }
 
 //lookup handle name
-bool lookUpHandle (char * handleName, HandleTable *table){
-    for (int i = 0; i < table->count; i++){
-        if ((strcmp(table->entries[i].handleName, handleName) == 0) && (table->entries[i].valid == 1)){
+bool lookUpHandle (char * handleName){
+    for (int i = 0; i < globalTable.count; i++){
+        if ((strcmp(globalTable.entries[i].handleName, handleName) == 0) && (globalTable.entries[i].valid == 1)){
             return true;
         }
     }
@@ -128,9 +132,10 @@ bool lookUpHandle (char * handleName, HandleTable *table){
 }
 
 //lookup socket number
-bool lookUpSocket (int socketNum, HandleTable *table){
-    for (int i = 0; i < table->count; i++){
-        if ((table->entries[i].socketNum == socketNum) && (table->entries[i].valid == 1)){
+bool lookUpSocket (int socketNum){
+    if(globalTable.entries)
+    for (int i = 0; i < globalTable.count; i++){
+        if ((globalTable.entries[i].socketNum == socketNum) && (globalTable.entries[i].valid == 1)){
             return true;
         }
     }

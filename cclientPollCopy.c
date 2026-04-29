@@ -41,23 +41,18 @@ void processStdin(int socketNum);
 
 
 
-void clientControl(int socketNum){
-    setupPollSet();
-    addToPollSet(socketNum); //the server
+void clientControl(int serverSocket){
     addToPollSet(STDIN_FILENO); //standard in
-
-
-
 
     // wait for client to connect
     while (1){
         int readySocket = pollCall(-1); //block until a socket is ready for read
 
-        if (readySocket == socketNum){
-            processMsgFromServer(socketNum);
+        if (readySocket == serverSocket){
+            processMsgFromServer(serverSocket);
         }
         else if (readySocket == STDIN_FILENO){
-            processStdin(socketNum);
+            processStdin(serverSocket);
         }
     }
 }
@@ -73,8 +68,11 @@ void processMsgFromServer(int socketNum){
         perror("recv call");
         exit(-1);
     } else if (recvBytes > 0){
+        //parse and print incoming message
         printf("Socket %d: Byte recv: %d message: %s\n", socketNum, recvBytes, buffer);
     }
+
+
 }
 
 void processStdin(int socketNum){
@@ -85,7 +83,8 @@ void processStdin(int socketNum){
 
         //string of if statements pulled from the depths
 	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
-		mCall(buffer, &table1);
+		mCall(buffer, &table1);    //put message together and send to server in each one in the specific way that it needs to 
+
 	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
 		bCall();
 	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
@@ -95,10 +94,9 @@ void processStdin(int socketNum){
 	}
 
 
-
     
-    sendLen = readFromStdin(buffer);
-    printf("read: %s string len: %d (including null)\n", buffer, sendLen);
+    //sendLen = readFromStdin(buffer);
+    //printf("read: %s string len: %d (including null)\n", buffer, sendLen);
     
     sent = sendPDU(socketNum, buffer, sendLen);
 
@@ -111,6 +109,9 @@ void processStdin(int socketNum){
     printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
     
 }
+
+//%M - send to specific destination, %B - broadcast, %C - send to some, not all,
+//%L - list all handlesknown by server
 
 void mCall(char buffer[350], HandleTable *table){
 	char command[3];
@@ -179,7 +180,12 @@ void lCall(HandleTable *table){
 int readFromStdin(uint8_t * buffer)
 {
 	char aChar = 0;
-	int inputLen = 0;        
+	int inputLen = 0;     
+    
+    //do print the $: first, then call poll cause poll with take over everything and not let it print
+	
+	// Important you don't input more characters than you have space 
+	printf("$: "); //fancy fancy
 	
 	// Important you don't input more characters than you have space 
 	buffer[0] = '\0';
@@ -204,27 +210,36 @@ int readFromStdin(uint8_t * buffer)
 void checkArgs(int argc, char * argv[])
 {
 	/* check command line arguments  */
-	if (argc != 3)
+	if (argc != 4)
 	{
 		printf("usage: %s host-name port-number \n", argv[0]);
 		exit(1);
 	}
 }
 
+initServer(){
+
+//buffer has flag, length byte and handle
+//len for sendPDU is 1byteflag, 1byte handlele, and then whatever the len of the handle is
+    sendPDU(socket, )
+}
+
 
 int main(int argc, char * argv[]){
-	int socketNum = 0;         //socket descriptor
-		int enterHandle;
+	int socketNum = 0; //socket descriptor
+    int enterHandle;
 	checkArgs(argc, argv);
 
-    //make handle table and add socket and handle
-	HandleTable table1 = createHandleTable(256);
-	if ((enterHandle = addHandleEntry(handleName, socketNum, table1)) == -1){
-		perror("error adding handle");
-	}
-
 	/* set up the TCP Client socket  */
-	socketNum = tcpClientSetup(argv[1], argv[2], DEBUG_FLAG);
+	socketNum = tcpClientSetup(argv[2], argv[3], DEBUG_FLAG);
+
+    setupPollSet();
+    addToPollSet(socketNum); //the server
+
+    initClient(socketNum,)
+
+    //make handle table
+	HandleTable table1 = createHandleTable(256);
 
     clientControl(socketNum);
 	
