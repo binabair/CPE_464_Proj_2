@@ -5,11 +5,11 @@
 #include <stdint.h>
 
 HandleTable createHandleTable(int size);
-int addHandleEntry(char *handleName, int socketNum, HandleTable *table);
+int addHandleEntry(char *handleName, int socketNum);
 int expandHandleTable(HandleTable *table);
-int removeHandleEntry(HandleEntry handle, HandleTable *table);
-bool lookUpHandle (char * handleName, HandleTable *table);
-bool lookUpSocket (int socketNum, HandleTable *table);
+int removeHandleEntry(HandleEntry handle);
+bool lookUpHandle (char * handleName);
+bool lookUpSocket (int socketNum);
 
 typedef struct {
     char handleName[100];

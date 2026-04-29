@@ -74,26 +74,31 @@ void serverControl(int mainServerSocket){
 }
 
 void addNewSocket(int mainServerSocket){
-    bool existingSocket;
     int clientSocket = tcpAccept(mainServerSocket, DEBUG_FLAG);
+    //also parse that new shit for the handle name
     addToPollSet(clientSocket);
-    existingSocket = lookUpSocket(clientSocket);
-    if (existingSocket == false) {
-        addHandleEntry()
-    }
-
 }
 
 void processClient(int clientSocket){
     uint8_t dataBuffer[MAXBUF];
     int recvOut = 0;
     int messageLen = 0;
-    
+    bool existingSocket;
+
     //now get the data from the client_socket
     recvOut = recvPDU(clientSocket, dataBuffer, MAXBUF);
 
+    //parse the shit out of databuffer to get the handle name
+
+    existingSocket = lookUpSocket(clientSocket);
+
+    if (existingSocket == false) {
+        addHandleEntry(handleName, clientSocket);
+    }
+
     if (recvOut > 0)
     {
+        //if flag was 1, send back the right flags
         printf("Socket %d: Message received, length: %d Data: %s\n", clientSocket, recvOut, dataBuffer);
         
         // send it back to client (just to test sending is working... e.g. debugging)

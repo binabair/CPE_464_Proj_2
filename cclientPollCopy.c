@@ -69,6 +69,8 @@ void processMsgFromServer(int socketNum){
         exit(-1);
     } else if (recvBytes > 0){
         //parse and print incoming message
+
+        buffer[]
         printf("Socket %d: Byte recv: %d message: %s\n", socketNum, recvBytes, buffer);
     }
 
@@ -113,7 +115,7 @@ void processStdin(int socketNum){
 //%M - send to specific destination, %B - broadcast, %C - send to some, not all,
 //%L - list all handlesknown by server
 
-void mCall(char buffer[350], HandleTable *table){
+void mCall(char buffer[350]){
 	char command[3];
 	char handleName[100];
 	char * message[200];
@@ -217,11 +219,22 @@ void checkArgs(int argc, char * argv[])
 	}
 }
 
-initServer(){
 
-//buffer has flag, length byte and handle
-//len for sendPDU is 1byteflag, 1byte handlele, and then whatever the len of the handle is
-    sendPDU(socket, )
+void initClient(int socketNum, int handleLen, char * handle){
+    char data[2+handleLen]; //flag + handle len + handle
+    data[0] = 1;
+    data[1] = handleLen;
+    int handleIndex = 0;
+
+    for (int i = 2; i < (handleLen + 2); i++){
+        data[i] = handle[handleIndex];
+    }
+
+    sendPDU(socketNum, data, (2+handleLen));
+
+    int serverReply = pollCall(-1);
+    processMsgFromServer(serverReply);
+
 }
 
 
@@ -236,10 +249,7 @@ int main(int argc, char * argv[]){
     setupPollSet();
     addToPollSet(socketNum); //the server
 
-    initClient(socketNum,)
-
-    //make handle table
-	HandleTable table1 = createHandleTable(256);
+    initClient(socketNum, sizeof(argv[1]), argv[1]);
 
     clientControl(socketNum);
 	

@@ -133,7 +133,10 @@ bool lookUpHandle (char * handleName){
 
 //lookup socket number
 bool lookUpSocket (int socketNum){
-    if(globalTable.entries)
+    if(!globalTable.entries){
+        createHandleTable(socketNum);
+    }
+    
     for (int i = 0; i < globalTable.count; i++){
         if ((globalTable.entries[i].socketNum == socketNum) && (globalTable.entries[i].valid == 1)){
             return true;
