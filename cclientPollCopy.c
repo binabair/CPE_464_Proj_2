@@ -40,6 +40,12 @@ void checkArgs(int argc, char * argv[]);
 void clientControl(int socketNum, char * myHandle);
 void processMsgFromServer(int socketNum);
 void processStdin(int socketNum, char * myHandle);
+void mCall(char * input, int serverSocket, char * myHandle);
+void cCall(char *input, int serverSocket, char *myHandle);
+void bCall(char *input, int serverSocket, char *myHandle);
+void lCall(int serverSocket);
+void initClient(int socketNum, int handleLen, char * handle);
+
 
 
 
@@ -167,15 +173,13 @@ void processStdin(int socketNum, char * myHandle){
 		mCall(buffer, socketNum, myHandle);    //put message together and send to server in each one in the specific way that it needs to 
 
 	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
-		bCall();
+		bCall((char *)buffer, socketNum, myHandle);
 	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
 		cCall(buffer, socketNum, myHandle);
 	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
 		lCall(socketNum);
 	}
 
-
-    
     //sendLen = readFromStdin(buffer);
     //printf("read: %s string len: %d (including null)\n", buffer, sendLen);
     
@@ -253,8 +257,49 @@ void mCall(char * input, int serverSocket, char * myHandle){
 
 }
 
-void bCall(){
+void bCall(char *input, int serverSocket, char *myHandle)
+{
+    char message[200];
+    uint8_t payload[512];
 
+    int myHandleLen = strlen(myHandle);
+    int msgLen = 0;
+    int index = 0;
+    int i = 2;   // skip %B or %b
+
+    // skip spaces after %B
+    for ( ; input[i] == ' '; i++) {
+    }
+
+    // parse message
+    for ( ; input[i] != '\0' && msgLen < 199; i++) {
+        message[msgLen] = input[i];
+        msgLen++;
+    }
+    message[msgLen] = '\0';
+
+    // build payload
+    payload[index] = 4;   // broadcast flag
+    index++;
+
+    payload[index] = (uint8_t) myHandleLen;
+    index++;
+
+    for (int j = 0; j < myHandleLen; j++) {
+        payload[index] = myHandle[j];
+        index++;
+    }
+
+    // copy message including null terminator
+    for (int j = 0; j <= msgLen; j++) {
+        payload[index] = message[j];
+        index++;
+    }
+
+    if (sendPDU(serverSocket, payload, index) < 0) {
+        perror("sendPDU");
+        exit(1);
+    }
 }
 
 void cCall(char *input, int serverSocket, char *myHandle){

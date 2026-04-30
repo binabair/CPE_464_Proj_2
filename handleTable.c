@@ -11,10 +11,6 @@
 
 #include "handleTable.h"
 
-//make global var of HandleTable
-//global HandleTable
-HandleTable globalTable;
-
 //struct for handle entries
 //make the table
 //add to table - check if resize is necessary (motherfuckerrrr thatll be two fxns)
@@ -108,10 +104,11 @@ int expandHandleTable(){
     return 0;
 }    
 
-//remove from table
-int removeHandleEntry(HandleEntry handle){
+//remove from table by socketNum
+int removeHandleBySocket(int socketNum){
     for (int i = 0; i < globalTable.count; i++){
-        if (globalTable.entries[i].socketNum == handle.socketNum){
+        if ((globalTable.entries[i].valid == 1) &&
+            (globalTable.entries[i].socketNum == socketNum)){
             globalTable.entries[i].valid = 0;
             globalTable.entries[i].socketNum = -1;
             globalTable.entries[i].handleName[0] = '\0';
@@ -120,6 +117,8 @@ int removeHandleEntry(HandleEntry handle){
     }
     return -1;
 }
+
+
 
 //lookup handle name
 bool lookUpHandle (char * handleName){
@@ -144,4 +143,56 @@ bool lookUpSocket (int socketNum){
     }
     return false;
 }
+
+//getting th handle by index for %L
+char *getHandleByIndex(int index){
+    if (index < 0 || index >= globalTable.count){
+        return NULL;
+    }
+
+    if (globalTable.entries[index].valid == 1){
+        return globalTable.entries[index].handleName;
+    }
+
+    return NULL;
+}
+
+//getting the valid handles for %L
+int getHandleCount(){
+    int count = 0;
+
+    for (int i = 0; i < globalTable.count; i++){
+        if (globalTable.entries[i].valid == 1){
+            count++;
+        }
+    }
+
+    return count;
+}
+
+//for broadcast
+int getSocketByIndex(int index){
+    if (index < 0 || index >= globalTable.count){
+        return -1;
+    }
+
+    if (globalTable.entries[index].valid == 1){
+        return globalTable.entries[index].socketNum;
+    }
+
+    return -1;
+}
+
+//get sockets from handles
+int getSocketByHandle(char *handleName){
+    for (int i = 0; i < globalTable.count; i++){
+        if ((globalTable.entries[i].valid == 1) &&
+            (strcmp(globalTable.entries[i].handleName, handleName) == 0)){
+            return globalTable.entries[i].socketNum;
+        }
+    }
+    return -1;
+}
+
+
 

@@ -35,6 +35,13 @@ int checkArgs(int argc, char *argv[]);
 void serverControl(int mainServerSocket);
 void addNewSocket(int mainServerSocket);
 void processClient(int clientSocket);
+void processFlag1(int clientSocket, uint8_t *dataBuffer, int recvLen);
+void processFlag4(int clientSocket, uint8_t *dataBuffer, int recvLen);
+void processFlag5(int clientSocket, uint8_t *dataBuffer, int recvLen);
+void processFlag6(int clientSocket, uint8_t *dataBuffer, int recvLen);
+void processFlag10(int clientSocket);
+void sendFlag7(int clientSocket, char *badHandle);
+
 
 int main(int argc, char *argv[])
 {
@@ -44,6 +51,7 @@ int main(int argc, char *argv[])
 	
 	portNumber = checkArgs(argc, argv);
 	
+    globalTable = createHandleTable(10);
 	//create the server socket
 	mainServerSocket = tcpServerSetup(portNumber);
 
@@ -90,14 +98,35 @@ void processClient(int clientSocket){
 
     //parse the shit out of databuffer to get the handle name
 
-    existingSocket = lookUpSocket(clientSocket);
+    if (recvOut > 0){
+        uint8_t flag = dataBuffer[0];
 
-    if (existingSocket == false) {
-        addHandleEntry(handleName, clientSocket);
-    }
+        switch(flag){
+            case 1:
+                processFlag1(clientSocket, dataBuffer, recvOut);
+                break;
 
-    if (recvOut > 0)
-    {
+            case 4:
+                processFlag4(clientSocket, dataBuffer, recvOut);
+                break;
+
+            case 5:
+                processFlag5(clientSocket, dataBuffer, recvOut);
+                break;
+
+            case 6:
+                processFlag6(clientSocket, dataBuffer, recvOut);
+                break;
+
+            case 10:
+                processFlag10(clientSocket);
+                break;
+
+            default:
+                printf("Unknown flag %d from socket %d\n", flag, clientSocket);
+                break;
+        }
+    }else if (recvOut > 0) {
         //if flag was 1, send back the right flags
         printf("Socket %d: Message received, length: %d Data: %s\n", clientSocket, recvOut, dataBuffer);
         
@@ -116,6 +145,157 @@ void processClient(int clientSocket){
         close(clientSocket);
     }
 }
+
+void processFlag1(int clientSocket, uint8_t *dataBuffer, int recvLen){
+    int handleLen = dataBuffer[1];
+    char handle[256];
+
+    for (int i = 0; i < handleLen; i++){
+        handle[i] = dataBuffer[i + 2];
+    }
+    handle[handleLen] = '\0';
+
+    if (lookUpHandle(handle) == true){
+        uint8_t reply[1];
+        reply[0] = 3;
+        sendPDU(clientSocket, reply, 1);
+    } else{
+        addHandleEntry(handle, clientSocket);
+
+        uint8_t reply[1];
+        reply[0] = 2;
+        sendPDU(clientSocket, reply, 1);
+    }
+}
+
+void processFlag4(int clientSocket, uint8_t *dataBuffer, int recvLen){
+    for (int i = 0; i < globalTable.count; i++){
+        int otherSocket = getSocketByIndex(i);
+
+        if (otherSocket != -1 && otherSocket != clientSocket){
+            sendPDU(otherSocket, dataBuffer, recvLen);
+        }
+    }
+}
+
+void processFlag5(int clientSocket, uint8_t *dataBuffer, int recvLen){
+    int index = 1;
+
+    int senderLen = dataBuffer[index];
+    index++;
+
+    char sender[256];
+    for (int i = 0; i < senderLen; i++){
+        sender[i] = dataBuffer[index];
+        index++;
+    }
+    sender[senderLen] = '\0';
+
+    int destCount = dataBuffer[index];
+    index++;
+
+    int destLen = dataBuffer[index];
+    index++;
+
+    char destHandle[256];
+    for (int i = 0; i < destLen; i++){
+        destHandle[i] = dataBuffer[index];
+        index++;
+    }
+    destHandle[destLen] = '\0';
+
+    int destSocket = getSocketByHandle(destHandle);
+
+    if (destSocket < 0){
+        sendFlag7(clientSocket, destHandle);
+        return;
+    }
+
+    sendPDU(destSocket, dataBuffer, recvLen);
+}
+
+void processFlag6(int clientSocket, uint8_t *dataBuffer, int recvLen){
+    int index = 1;
+
+    int senderLen = dataBuffer[index];
+    index++;
+
+    char sender[256];
+    for (int i = 0; i < senderLen; i++){
+        sender[i] = dataBuffer[index];
+        index++;
+    }
+    sender[senderLen] = '\0';
+
+    int destCount = dataBuffer[index];
+    index++;
+
+    for (int h = 0; h < destCount; h++){
+        int destLen = dataBuffer[index];
+        index++;
+
+        char destHandle[256];
+        for (int i = 0; i < destLen; i++){
+            destHandle[i] = dataBuffer[index];
+            index++;
+        }
+        destHandle[destLen] = '\0';
+
+        int destSocket = getSocketByHandle(destHandle);
+
+        if (destSocket < 0){
+            sendFlag7(clientSocket, destHandle);
+        }
+        else{
+            sendPDU(destSocket, dataBuffer, recvLen);
+        }
+    }
+}
+
+void sendFlag7(int clientSocket, char *badHandle){
+    int handleLen = strlen(badHandle);
+    uint8_t reply[256];
+
+    reply[0] = 7;
+    reply[1] = handleLen;
+
+    for (int i = 0; i < handleLen; i++){
+        reply[i + 2] = badHandle[i];
+    }
+
+    sendPDU(clientSocket, reply, handleLen + 2);
+}
+
+void processFlag10(int clientSocket){
+    uint8_t reply11[5];
+    uint32_t count = getHandleCount();
+    uint32_t countNet = htonl(count);
+
+    reply11[0] = 11;
+    memcpy(&reply11[1], &countNet, sizeof(uint32_t));
+    sendPDU(clientSocket, reply11, 5);
+
+    for (int i = 0; i < getHandleCount(); i++){
+        char *handle = getHandleAtIndex(i);
+        int handleLen = strlen(handle);
+
+        uint8_t reply12[256];
+        reply12[0] = 12;
+        reply12[1] = handleLen;
+
+        for (int j = 0; j < handleLen; j++){
+            reply12[j + 2] = handle[j];
+        }
+
+        sendPDU(clientSocket, reply12, handleLen + 2);
+    }
+
+    uint8_t reply13[1];
+    reply13[0] = 13;
+    sendPDU(clientSocket, reply13, 1);
+}
+
+
 
 
 int checkArgs(int argc, char *argv[])

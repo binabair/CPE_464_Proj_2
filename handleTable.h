@@ -1,15 +1,19 @@
-#ifndef MY_STRUCTS_H
-#define MY_STRUCTS_H
+#ifndef HANDLETABLE_H
+#define HANDLETABLE_H
 
 #include <stdbool.h>
 #include <stdint.h>
 
 HandleTable createHandleTable(int size);
 int addHandleEntry(char *handleName, int socketNum);
-int expandHandleTable(HandleTable *table);
-int removeHandleEntry(HandleEntry handle);
-bool lookUpHandle (char * handleName);
-bool lookUpSocket (int socketNum);
+int expandHandleTable(void);
+bool lookUpHandle(char *handleName);
+bool lookUpSocket(int socketNum);
+int removeHandleBySocket(int socketNum);
+int getSocketByHandle(char *handleName);
+char *getHandleByIndex(int index);
+int getSocketByIndex(int index);
+int getHandleCount(void);
 
 HandleTable globalTable;
 
