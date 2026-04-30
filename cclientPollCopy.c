@@ -31,6 +31,9 @@
 #define MAXBUF 1024
 #define DEBUG_FLAG 1
 
+int listMode = 0;
+int listCountRemaining = 0;
+
 void sendToServer(int socketNum);
 int readFromStdin(uint8_t * buffer);
 void checkArgs(int argc, char * argv[]);
@@ -60,7 +63,7 @@ void clientControl(int serverSocket, char * myHandle){
 void processMsgFromServer(int socketNum){
     uint8_t buffer[MAXBUF];
     int recvBytes = recvPDU(socketNum, buffer, MAXBUF);
-    int flag;
+    uint8_t flag = buffer[0];
 
     if (recvBytes == 0){
         printf("Server has terminated\n");
@@ -68,14 +71,85 @@ void processMsgFromServer(int socketNum){
     }else if (recvBytes < 0){
         perror("recv call");
         exit(-1);
-    } else if (recvBytes > 0){
-        //parse and print incoming message 
-        // should be just flag from server
-        flag = buffer[0];
-        if (flag == 2){
+    } 
 
+    switch(flag){
+        case 4:
+            // incoming broadcast message exact parse depends on your %B packet format
+            printf("Received broadcast packet\n");
+            break;
+
+        case 5: {
+            // incoming %M message
+            // exact parse depends on whether server forwards
+            // full original packet or strips destination info
+            printf("Received message packet\n");
+            break;
         }
-        //printf("Socket %d: Byte recv: %d message: %s\n", socketNum, recvBytes, buffer);
+
+        case 6: {
+            // incoming %C message
+            // same note as flag 5
+            printf("Received multicast packet\n");
+            break;
+        }
+
+        case 7: {
+            // error: destination handle does not exist
+            int badHandleLen = buffer[1];
+            char badHandle[256];
+
+            for (int i = 0; i < badHandleLen; i++){
+                badHandle[i] = buffer[i + 2];
+            }
+            badHandle[badHandleLen] = '\0';
+
+            printf("Client with handle %s does not exist.\n", badHandle);
+            break;
+        }
+
+        case 11: {
+            // response to %L: number of handles follows
+            uint32_t numHandlesNet;
+            uint32_t numHandles;
+
+            memcpy(&numHandlesNet, &buffer[1], sizeof(uint32_t));
+            numHandles = ntohl(numHandlesNet);
+
+            listMode = 1;
+            listCountRemaining = numHandles;
+
+            printf("Number of clients: %u\n", numHandles);
+            break;
+        }
+
+        case 12: {
+            // one handle from the server's handle list
+            int handleLen = buffer[1];
+            char handle[256];
+
+            for (int i = 0; i < handleLen; i++){
+                handle[i] = buffer[i + 2];
+            }
+            handle[handleLen] = '\0';
+
+            printf("%s\n", handle);
+
+            if (listMode && listCountRemaining > 0){
+                listCountRemaining--;
+            }
+            break;
+        }
+
+        case 13:
+            // %L finished
+            listMode = 0;
+            listCountRemaining = 0;
+            break;
+
+        default:
+            printf("Unknown flag %d received from server\n", flag);
+            break;
     }
 
 
