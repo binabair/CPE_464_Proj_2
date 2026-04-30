@@ -34,14 +34,14 @@
 void sendToServer(int socketNum);
 int readFromStdin(uint8_t * buffer);
 void checkArgs(int argc, char * argv[]);
-void clientControl(int socketNum);
+void clientControl(int socketNum, char * myHandle);
 void processMsgFromServer(int socketNum);
-void processStdin(int socketNum);
+void processStdin(int socketNum, char * myHandle);
 
 
 
 
-void clientControl(int serverSocket){
+void clientControl(int serverSocket, char * myHandle){
     addToPollSet(STDIN_FILENO); //standard in
 
     // wait for client to connect
@@ -52,7 +52,7 @@ void clientControl(int serverSocket){
             processMsgFromServer(serverSocket);
         }
         else if (readySocket == STDIN_FILENO){
-            processStdin(serverSocket);
+            processStdin(serverSocket, myHandle);
         }
     }
 }
@@ -81,7 +81,7 @@ void processMsgFromServer(int socketNum){
 
 }
 
-void processStdin(int socketNum){
+void processStdin(int socketNum, char * myHandle){
     uint8_t buffer[MAXBUF];   //data buffer
     int sendLen = 0;        //amount of data to send
     int sent = 0;            //actual amount of data sent
@@ -90,12 +90,12 @@ void processStdin(int socketNum){
 
     //string of if statements pulled from the depths
 	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
-		mCall(buffer, socketNum);    //put message together and send to server in each one in the specific way that it needs to 
+		mCall(buffer, socketNum, myHandle);    //put message together and send to server in each one in the specific way that it needs to 
 
 	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
 		bCall();
 	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
-		cCall();
+		cCall(buffer, socketNum, myHandle);
 	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
 		lCall(globalTable);
 	}
@@ -118,54 +118,64 @@ void processStdin(int socketNum){
 //%M - send to specific destination, %B - broadcast, %C - send to some, not all,
 //%L - list all handlesknown by server
 
-void mCall(char buffer[350], int serverSocket){
-	char command[3];
-	char handleName[100];
-	char message[200];
-	int sent = 0;
+void mCall(char * input, int serverSocket, char * myHandle){
+	char destHandle[100];
+    char message[200];
+    uint8_t payload[512];
 
-	int i = 2; // skip m
-    int j = 0;
+    int myHandleLen = strlen(myHandle);
+    int destLen = 0;
+    int msgLen = 0;
+    int index = 0;
 
-	//parse this bitch - itll be put in perfectly
+    int i = 2;  // skip %M, also set i for the loops
 
-	while (buffer[i] != ' ' && buffer[i] != '\0') {
-        handleName[j++] = buffer[i++];
+    for (; input[i] == ' '; i++);
+
+    // parse destination handle
+    for (; input[i] != ' ' && input[i] != '\0' && destLen < 99; i++) {
+        destHandle[destLen++] = input[i];
+    }
+    destHandle[destLen] = '\0';
+
+    if (input[i] == ' ') {
+        i++;
     }
 
-	handleName[j] = '\0'; //terminate the handlename
+    // get message
+    for (; input[i] != '\0' && msgLen < 199; i++) {
+        message[msgLen++] = input[i];
+    }
+    message[msgLen] = '\0';
 
-	if (buffer[i] == ' ') { //check if theres message or not
-		i++;
-	}
-    // If no message - empty string
-    if (buffer[i] == '\0') {
-        message[0] = '\0';
-    } else {
-        int k = 0;
-        while (buffer[i] != '\0') {
-            message[k++] = buffer[i++];
-        }
-        message[k] = '\0';
+    //flag (5) + length of sending clients handle + sending clients handle itself + literal number 1 (duh that why we %M in the first place)
+    //+ destination handle (1byte handle len +handle name) + message
+    //this gets back flag 7 if handle dos not exist
+
+    payload[index++] = 5; // flag
+
+    payload[index++] = (uint8_t) myHandleLen; // sender handle length and make it exactly one byte
+    for (int j = 0; j < myHandleLen; j++) { //sender handle
+        payload[index++] = myHandle[j];
     }
 
-    //flag + length of handle + handle itself + literal number 1 (duh that why w %M in the first place)
+    payload[index++] = 1; // number of destination handles
 
-    char payload[350];
-    payload[0] = 
-    memcpy(payload, );
+    payload[index++] = (uint8_t) destLen; // dest handle length (make it one byte)
+    for (int j = 0; j < destLen; j++) {  //copy over dest handle
+        payload[index++] = destHandle[j];
+    }
 
-	//must attach message packet length (2bytes)
-	sent = sendPDU(serverSocket, buffer, sendLen);
+    for (int j = 0; j <= msgLen; j++) {  //copy over message 
+        payload[index++] = message[j];
+    }
 
-    if (sent < 0)
-	{
-		perror("send call");
-		exit(-1);
-	}
-
+    // send it
+    if (sendPDU(serverSocket, payload, index) < 0) {
+        perror("sendPDU");
+        exit(1);
+    }
 	//printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
-
 
 }
 
@@ -173,15 +183,102 @@ void bCall(){
 
 }
 
-void cCall(){
+void cCall(char *input, int serverSocket, char *myHandle){
+    char destHandles[9][100];
+    char message[200];
+    uint8_t payload[1024];
 
+    int myHandleLen = strlen(myHandle);
+    int numHandles = 0;
+    int destLens[9];
+    int msgLen = 0;
+    int index = 0;
+    int i = 2;   // skip %C and start i
+
+    for ( ; input[i] == ' '; i++);
+
+    if (input[i] >= '2' && input[i] <= '9') {  // mkae sure num of handles is within range
+        numHandles = input[i] - '0';
+        i++;
+    } else {
+        printf("Invalid number of handles for %%C\n");
+        return;
+    }
+
+    for ( ; input[i] == ' '; i++);
+
+    // parse each destination handle
+    for (int h = 0; h < numHandles; h++) {
+        int len = 0;
+
+        for ( ; input[i] != ' ' && input[i] != '\0' && len < 99; i++) { //drop each one in at correct handle, int the array of them
+            destHandles[h][len] = input[i];
+            len++;
+        }
+        destHandles[h][len] = '\0';
+        destLens[h] = len; //add the length of each handle respectively
+
+        if (len == 0) {  //some bullshit happened
+            printf("Missing destination handle in %%C\n"); 
+            return;
+        }
+
+        if (h < numHandles - 1) {
+            if (input[i] == '\0') {
+                printf("Not enough destination handles for %%C\n");
+                return;
+            }
+
+            for ( ; input[i] == ' '; i++);
+        }
+    }
+
+    // skip spaces
+    for ( ; input[i] == ' '; i++);
+
+    // parse message
+    for ( ; input[i] != '\0' && msgLen < 199; i++) {
+        message[msgLen] = input[i];
+        msgLen++;
+    }
+    message[msgLen] = '\0';
+
+    // build payload same as %m
+    payload[index] = 6;  index++; // multicast flag
+    
+    payload[index] = (uint8_t) myHandleLen; index++;
+
+    for (int j = 0; j < myHandleLen; j++) {
+        payload[index] = myHandle[j];
+        index++;
+    }
+
+    payload[index] = (uint8_t) numHandles;
+    index++;
+
+    for (int h = 0; h < numHandles; h++) {
+        payload[index] = (uint8_t) destLens[h];
+        index++;
+
+        for (int j = 0; j < destLens[h]; j++) {
+            payload[index] = destHandles[h][j];
+            index++;
+        }
+    }
+
+    // copy message including null terminator
+    for (int j = 0; j <= msgLen; j++) {
+        payload[index] = message[j];
+        index++;
+    }
+
+    if (sendPDU(serverSocket, payload, index) < 0) {
+        perror("sendPDU");
+        exit(1);
+    }
 }
 
 void lCall(HandleTable *table){
-	//
-	for (int i = 0; i < table->count; i++){
-		//Give this to Flag = 12, whever the hell that means
-	}
 
 
 }
@@ -267,8 +364,9 @@ void initClient(int socketNum, int handleLen, char * handle){
 
 int main(int argc, char * argv[]){
 	int socketNum = 0; //socket descriptor
-    int enterHandle;
 	checkArgs(argc, argv);
+
+    char myHandle[100] = strcpy(myHandle, argv[1]);
 
 	/* set up the TCP Client socket  */
 	socketNum = tcpClientSetup(argv[2], argv[3], DEBUG_FLAG);
@@ -276,9 +374,9 @@ int main(int argc, char * argv[]){
     setupPollSet();
     addToPollSet(socketNum); //the server
 
-    initClient(socketNum, strlen(argv[1]), argv[1]);
+    initClient(socketNum, strlen(myHandle), myHandle);
 
-    clientControl(socketNum);
+    clientControl(socketNum, myHandle);
 	
 	return 0;
 }
