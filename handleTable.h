@@ -11,6 +11,8 @@ int removeHandleEntry(HandleEntry handle);
 bool lookUpHandle (char * handleName);
 bool lookUpSocket (int socketNum);
 
+HandleTable globalTable;
+
 typedef struct {
     char handleName[100];
     int socketNum;

@@ -71,8 +71,8 @@ void processMsgFromServer(int socketNum){
     } else if (recvBytes > 0){
         //parse and print incoming message 
         // should be just flag from server
-        flag = buffer[2];
-        if (strcmp(flag, "2")){
+        flag = buffer[0];
+        if (flag == 2){
 
         }
         //printf("Socket %d: Byte recv: %d message: %s\n", socketNum, recvBytes, buffer);
@@ -86,17 +86,18 @@ void processStdin(int socketNum){
     int sendLen = 0;        //amount of data to send
     int sent = 0;            //actual amount of data sent
 
+    sendLen = readFromStdin(buffer);
 
         //string of if statements pulled from the depths
 	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
-		mCall(buffer, &table1);    //put message together and send to server in each one in the specific way that it needs to 
+		mCall(buffer);    //put message together and send to server in each one in the specific way that it needs to 
 
 	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
 		bCall();
 	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
 		cCall();
 	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
-		lCall(&table1);
+		lCall(globalTable);
 	}
 
 
@@ -230,29 +231,34 @@ void initClient(int socketNum, int handleLen, char * handle){
     data[1] = handleLen;
     int handleIndex = 0;
 
-    for (int i = 0; i < (handleLen + 2); i++){
+    for (int i = 0; i < handleLen; i++){
         data[i+2] = handle[i];
     }
 
-    sendPDU(socketNum, data, (2+handleLen));
-
-    int serverReply = pollCall(-1);
+    if (sendPDU(socketNum, data, 2 + handleLen) < 0){
+        perror("sendPDU");
+        close(socketNum);
+        exit(1);
+    }
 
     uint8_t buffer[MAXBUF];
-    int recvBytes = recvPDU(serverReply, buffer, MAXBUF);
+    int recvBytes = recvPDU(socketNum, buffer, MAXBUF);
+
     if (recvBytes == 0){
         printf("Server has terminated\n");
         exit(-1);
     }
 
-    int flag;
-    flag = buffer[0];
+    int flag = buffer[0];
 
     if (flag == 3){
         printf("Server rejected initial handle");
         close(socketNum);
         exit(-1);
+    }else if (flag == 2){
+        addHandleEntry(handle, socketNum);
     }
+    
 
 }
 
