@@ -82,6 +82,7 @@ void processMsgFromServer(int socketNum){
     switch(flag){
         case 4:
             // incoming broadcast message exact parse depends on your %B packet format
+            
             printf("Received broadcast packet\n");
             break;
 

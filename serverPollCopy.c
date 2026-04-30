@@ -126,16 +126,8 @@ void processClient(int clientSocket){
                 printf("Unknown flag %d from socket %d\n", flag, clientSocket);
                 break;
         }
-    }else if (recvOut > 0) {
-        //if flag was 1, send back the right flags
-        printf("Socket %d: Message received, length: %d Data: %s\n", clientSocket, recvOut, dataBuffer);
-        
-        // send it back to client (just to test sending is working... e.g. debugging)
-        messageLen = sendPDU(clientSocket, dataBuffer, recvOut);
-        printf("Socket %d: msg sent: %d bytes, text: %s\n", clientSocket, messageLen, dataBuffer);
     }
-    else if (recvOut == 0)
-    {
+    else if (recvOut == 0) {
         printf("Socket %d: Connection closed by other side\n", clientSocket);
         removeFromPollSet(clientSocket);
         close(clientSocket);
