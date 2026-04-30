@@ -97,7 +97,7 @@ void processStdin(int socketNum, char * myHandle){
 	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
 		cCall(buffer, socketNum, myHandle);
 	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
-		lCall(globalTable);
+		lCall(socketNum);
 	}
 
 
@@ -278,9 +278,15 @@ void cCall(char *input, int serverSocket, char *myHandle){
     }
 }
 
-void lCall(HandleTable *table){
+void lCall(int serverSocket){
+    uint8_t payload[1];
 
+    payload[0] = 10;   // flag for %L request
 
+    if (sendPDU(serverSocket, payload, 1) < 0) {
+        perror("sendPDU");
+        exit(1);
+    }
 }
 
 
