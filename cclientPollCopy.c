@@ -152,7 +152,8 @@ void mCall(char buffer[350], int serverSocket){
     //flag + length of handle + handle itself + literal number 1 (duh that why w %M in the first place)
 
     char payload[350];
-    memcpy(payload, )
+    payload[0] = 
+    memcpy(payload, );
 
 	//must attach message packet length (2bytes)
 	sent = sendPDU(serverSocket, buffer, sendLen);
@@ -193,7 +194,6 @@ int readFromStdin(uint8_t * buffer)
     
     //do print the $: first, then call poll cause poll with take over everything and not let it print
 	
-	// Important you don't input more characters than you have space 
 	printf("$: "); //fancy fancy
 	
 	// Important you don't input more characters than you have space 
