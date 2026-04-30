@@ -60,6 +60,7 @@ void clientControl(int serverSocket){
 void processMsgFromServer(int socketNum){
     uint8_t buffer[MAXBUF];
     int recvBytes = recvPDU(socketNum, buffer, MAXBUF);
+    int flag;
 
     if (recvBytes == 0){
         printf("Server has terminated\n");
@@ -68,10 +69,13 @@ void processMsgFromServer(int socketNum){
         perror("recv call");
         exit(-1);
     } else if (recvBytes > 0){
-        //parse and print incoming message
+        //parse and print incoming message 
+        // should be just flag from server
+        flag = buffer[2];
+        if (strcmp(flag, "2")){
 
-        buffer[]
-        printf("Socket %d: Byte recv: %d message: %s\n", socketNum, recvBytes, buffer);
+        }
+        //printf("Socket %d: Byte recv: %d message: %s\n", socketNum, recvBytes, buffer);
     }
 
 
@@ -226,14 +230,29 @@ void initClient(int socketNum, int handleLen, char * handle){
     data[1] = handleLen;
     int handleIndex = 0;
 
-    for (int i = 2; i < (handleLen + 2); i++){
-        data[i] = handle[handleIndex];
+    for (int i = 0; i < (handleLen + 2); i++){
+        data[i+2] = handle[i];
     }
 
     sendPDU(socketNum, data, (2+handleLen));
 
     int serverReply = pollCall(-1);
-    processMsgFromServer(serverReply);
+
+    uint8_t buffer[MAXBUF];
+    int recvBytes = recvPDU(serverReply, buffer, MAXBUF);
+    if (recvBytes == 0){
+        printf("Server has terminated\n");
+        exit(-1);
+    }
+
+    int flag;
+    flag = buffer[0];
+
+    if (flag == 3){
+        printf("Server rejected initial handle");
+        close(socketNum);
+        exit(-1);
+    }
 
 }
 
@@ -249,7 +268,7 @@ int main(int argc, char * argv[]){
     setupPollSet();
     addToPollSet(socketNum); //the server
 
-    initClient(socketNum, sizeof(argv[1]), argv[1]);
+    initClient(socketNum, strlen(argv[1]), argv[1]);
 
     clientControl(socketNum);
 	
