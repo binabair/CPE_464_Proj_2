@@ -88,9 +88,9 @@ void processStdin(int socketNum){
 
     sendLen = readFromStdin(buffer);
 
-        //string of if statements pulled from the depths
+    //string of if statements pulled from the depths
 	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
-		mCall(buffer);    //put message together and send to server in each one in the specific way that it needs to 
+		mCall(buffer, socketNum);    //put message together and send to server in each one in the specific way that it needs to 
 
 	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
 		bCall();
@@ -105,8 +105,6 @@ void processStdin(int socketNum){
     //sendLen = readFromStdin(buffer);
     //printf("read: %s string len: %d (including null)\n", buffer, sendLen);
     
-    sent = sendPDU(socketNum, buffer, sendLen);
-
     if (sent < 0)
     {
         perror("send call");
@@ -120,10 +118,10 @@ void processStdin(int socketNum){
 //%M - send to specific destination, %B - broadcast, %C - send to some, not all,
 //%L - list all handlesknown by server
 
-void mCall(char buffer[350]){
+void mCall(char buffer[350], int serverSocket){
 	char command[3];
 	char handleName[100];
-	char * message[200];
+	char message[200];
 	int sent = 0;
 
 	int i = 2; // skip m
@@ -151,17 +149,21 @@ void mCall(char buffer[350]){
         message[k] = '\0';
     }
 
-	//must attach message packet length (2bytes)
-	sent = sendPDU(socketNum, buffer, sendLen);
+    //flag + length of handle + handle itself + literal number 1 (duh that why w %M in the first place)
 
-	sent =  safeSend(socketNum, buffer, sendLen, 0);
-	if (sent < 0)
+    char payload[350];
+    memcpy(payload, )
+
+	//must attach message packet length (2bytes)
+	sent = sendPDU(serverSocket, buffer, sendLen);
+
+    if (sent < 0)
 	{
 		perror("send call");
 		exit(-1);
 	}
 
-	printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
+	//printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
 
 
 }
