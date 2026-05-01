@@ -28,7 +28,7 @@
 #include "pollLib.h"
 #include "handleTable.h"
 
-#define MAXBUF 1024
+#define MAXBUF 1401
 #define DEBUG_FLAG 1
 #define MAX_HANDLE 100
 
@@ -46,9 +46,9 @@ void cCall(char *input, int serverSocket, char *myHandle);
 void bCall(char *input, int serverSocket, char *myHandle);
 void lCall(int serverSocket);
 void initClient(int socketNum, int handleLen, char * handle);
-
-
-
+void sendMessagePDU(int socket, char *myHandle, char *destHandle, char *message);
+void sendBroadcastPDU(int socket, char *myHandle, char *message);
+void sendMulticastPDU(int socket, char *myHandle, int numHandles, char handles[][101], char *message);
 
 
 void clientControl(int serverSocket, char * myHandle){
@@ -254,13 +254,13 @@ void processStdin(int socketNum, char * myHandle){
 
     //string of if statements pulled from the depths
 	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
-		mCall(buffer, socketNum, myHandle);
+		mCall((char *)buffer, socketNum, myHandle);
 	}
     else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
 		bCall((char *)buffer, socketNum, myHandle);
 	}
     else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
-		cCall(buffer, socketNum, myHandle);
+		cCall((char *)buffer, socketNum, myHandle);
 	}
     else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
 		lCall(socketNum);
@@ -276,15 +276,9 @@ void processStdin(int socketNum, char * myHandle){
 //%L - list all handlesknown by server
 
 void mCall(char * input, int serverSocket, char * myHandle){
-	char destHandle[100];
-    char message[200];
-    uint8_t payload[512];
-
-    int myHandleLen = strlen(myHandle);
-    int destLen = 0;
+	char destHandle[101];
+    char message[MAXBUF];
     int msgLen = 0;
-    int index = 0;
-
     int i = 2;  // skip %M, also set i for the loops
 
     for (; input[i] == ' '; i++);
@@ -319,55 +313,38 @@ void mCall(char * input, int serverSocket, char * myHandle){
     }
     destHandle[tempLen] = '\0';
 
-    destLen = tempLen;
-
     for (; input[i] == ' '; i++);
 
     // get message
-    for (; input[i] != '\0' && msgLen < 199; i++) {
+    for (; input[i] != '\0'; i++) {
         message[msgLen++] = input[i];
     }
     message[msgLen] = '\0';
 
-    //flag (5) + length of sending clients handle + sending clients handle itself + literal number 1 (duh that why we %M in the first place)
-    //+ destination handle (1byte handle len +handle name) + message
-    //this gets back flag 7 if handle dos not exist
-
-    payload[index++] = 5; // flag
-
-    payload[index++] = (uint8_t) myHandleLen; // sender handle length and make it exactly one byte
-    for (int j = 0; j < myHandleLen; j++) { //sender handle
-        payload[index++] = myHandle[j];
+    // Split into multiple packets if needed
+    if (msgLen == 0) {
+        sendMessagePDU(serverSocket, myHandle, destHandle, "");
+        return;
     }
 
-    payload[index++] = 1; // number of destination handles
+    char chunk[200];
 
-    payload[index++] = (uint8_t) destLen; // dest handle length (make it one byte)
-    for (int j = 0; j < destLen; j++) {  //copy over dest handle
-        payload[index++] = destHandle[j];
+    for (int offset = 0; offset < msgLen; offset += 199) {
+        int chunkLen = msgLen - offset;
+        if (chunkLen > 199) {
+            chunkLen = 199;
+        }
+
+        memcpy(chunk, message + offset, chunkLen);
+        chunk[chunkLen] = '\0';
+
+        sendMessagePDU(serverSocket, myHandle, destHandle, chunk);
     }
-
-    for (int j = 0; j <= msgLen; j++) {  //copy over message 
-        payload[index++] = message[j];
-    }
-
-    // send it
-    if (sendPDU(serverSocket, payload, index) < 0) {
-        perror("sendPDU");
-        exit(1);
-    }
-	//printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
-
 }
 
-void bCall(char *input, int serverSocket, char *myHandle)
-{
-    char message[200];
-    uint8_t payload[512];
-
-    int myHandleLen = strlen(myHandle);
+void bCall(char *input, int serverSocket, char *myHandle){
+    char message[MAXBUF];
     int msgLen = 0;
-    int index = 0;
     int i = 2;   // skip %B or %b
 
     // skip spaces after %B
@@ -375,46 +352,38 @@ void bCall(char *input, int serverSocket, char *myHandle)
     }
 
     // parse message
-    for ( ; input[i] != '\0' && msgLen < 199; i++) {
+    for ( ; input[i] != '\0'; i++) {
         message[msgLen] = input[i];
         msgLen++;
     }
     message[msgLen] = '\0';
 
-    // build payload
-    payload[index] = 4;   // broadcast flag
-    index++;
-
-    payload[index] = (uint8_t) myHandleLen;
-    index++;
-
-    for (int j = 0; j < myHandleLen; j++) {
-        payload[index] = myHandle[j];
-        index++;
+    // send empty broadcast message if no text
+    if (msgLen == 0) {
+        sendBroadcastPDU(serverSocket, myHandle, "");
+        return;
     }
 
-    // copy message including null terminator
-    for (int j = 0; j <= msgLen; j++) {
-        payload[index] = message[j];
-        index++;
-    }
+    char chunk[200];
 
-    if (sendPDU(serverSocket, payload, index) < 0) {
-        perror("sendPDU");
-        exit(1);
+    for (int offset = 0; offset < msgLen; offset += 199) {
+        int chunkLen = msgLen - offset;
+        if (chunkLen > 199) {
+            chunkLen = 199;
+        }
+
+        memcpy(chunk, message + offset, chunkLen);
+        chunk[chunkLen] = '\0';
+
+        sendBroadcastPDU(serverSocket, myHandle, chunk);
     }
 }
 
 void cCall(char *input, int serverSocket, char *myHandle){
-    char destHandles[9][100];
-    char message[200];
-    uint8_t payload[1024];
-
-    int myHandleLen = strlen(myHandle);
+    char destHandles[9][101];
+    char message[MAXBUF];
     int numHandles = 0;
-    int destLens[9];
     int msgLen = 0;
-    int index = 0;
     int i = 2;   // skip %C and start i
 
     for ( ; input[i] == ' '; i++);
@@ -461,8 +430,6 @@ void cCall(char *input, int serverSocket, char *myHandle){
             destHandles[h][j] = input[start + j];
         }
         destHandles[h][tempLen] = '\0'; //add in len and the null pointers
-        destLens[h] = tempLen;
-
 
         if (h < numHandles - 1) {
             if (input[i] == '\0') {
@@ -479,44 +446,31 @@ void cCall(char *input, int serverSocket, char *myHandle){
     // skip spaces
     for ( ; input[i] == ' '; i++);
 
-    // parse message
-    for ( ; input[i] != '\0' && msgLen < 199; i++) {
+    // parse full message
+    for ( ; input[i] != '\0'; i++) {
         message[msgLen] = input[i];
         msgLen++;
     }
     message[msgLen] = '\0';
 
-    // build payload same as %m
-    payload[index] = 6;  index++; // multicast flag
-    
-    payload[index] = (uint8_t) myHandleLen; index++;
-
-    for (int j = 0; j < myHandleLen; j++) {
-        payload[index] = myHandle[j];
-        index++;
+    // send empty multicast message if no text
+    if (msgLen == 0) {
+        sendMulticastPDU(serverSocket, myHandle, numHandles, destHandles, "");
+        return;
     }
 
-    payload[index] = (uint8_t) numHandles; index++;
+    char chunk[200];
 
-    for (int h = 0; h < numHandles; h++) {
-        payload[index] = (uint8_t) destLens[h];
-        index++;
-
-        for (int j = 0; j < destLens[h]; j++) {
-            payload[index] = destHandles[h][j];
-            index++;
+    for (int offset = 0; offset < msgLen; offset += 199) {
+        int chunkLen = msgLen - offset;
+        if (chunkLen > 199) {
+            chunkLen = 199;
         }
-    }
 
-    // copy message including null terminator
-    for (int j = 0; j <= msgLen; j++) {
-        payload[index] = message[j];
-        index++;
-    }
+        memcpy(chunk, message + offset, chunkLen);
+        chunk[chunkLen] = '\0';
 
-    if (sendPDU(serverSocket, payload, index) < 0) {
-        perror("sendPDU");
-        exit(1);
+        sendMulticastPDU(serverSocket, myHandle, numHandles, destHandles, chunk);
     }
 }
 
@@ -529,6 +483,74 @@ void lCall(int serverSocket){
         perror("sendPDU");
         exit(1);
     }
+}
+
+void sendMessagePDU(int socket, char *myHandle, char *destHandle, char *message) {
+    uint8_t pdu[MAXBUF];
+    int idx = 0;
+
+    pdu[idx++] = 5; // flag
+
+    uint8_t senderLen = strlen(myHandle);
+    pdu[idx++] = senderLen;
+    memcpy(pdu + idx, myHandle, senderLen);
+    idx += senderLen;
+
+    pdu[idx++] = 1; // one destination
+
+    uint8_t destLen = strlen(destHandle);
+    pdu[idx++] = destLen;
+    memcpy(pdu + idx, destHandle, destLen);
+    idx += destLen;
+
+    strcpy((char *)(pdu + idx), message);
+    idx += strlen(message) + 1;
+
+    sendPDU(socket, pdu, idx);
+}
+
+void sendBroadcastPDU(int socket, char *myHandle, char *message) {
+    uint8_t pdu[MAXBUF];
+    int idx = 0;
+
+    pdu[idx++] = 4; // flag
+
+    uint8_t senderLen = strlen(myHandle);
+    pdu[idx++] = senderLen;
+    memcpy(pdu + idx, myHandle, senderLen);
+    idx += senderLen;
+
+    strcpy((char *)(pdu + idx), message);
+    idx += strlen(message) + 1;
+
+    sendPDU(socket, pdu, idx);
+}
+
+void sendMulticastPDU(int socket, char *myHandle, int numHandles,
+    char handles[][101], char *message) {
+    uint8_t pdu[MAXBUF];
+    int idx = 0;
+
+    pdu[idx++] = 6; // flag
+
+    uint8_t senderLen = strlen(myHandle);
+    pdu[idx++] = senderLen;
+    memcpy(pdu + idx, myHandle, senderLen);
+    idx += senderLen;
+
+    pdu[idx++] = numHandles;
+
+    for (int i = 0; i < numHandles; i++) {
+        uint8_t len = strlen(handles[i]);
+        pdu[idx++] = len;
+        memcpy(pdu + idx, handles[i], len);
+        idx += len;
+    }
+
+    strcpy((char *)(pdu + idx), message);
+    idx += strlen(message) + 1;
+
+    sendPDU(socket, pdu, idx);
 }
 
 
@@ -627,7 +649,7 @@ void initClient(int socketNum, int handleLen, char * handle){
 int main(int argc, char * argv[]){
 	int socketNum = 0; //socket descriptor
 	checkArgs(argc, argv);
-    char myHandle[100];
+    char myHandle[101];
     strcpy(myHandle, argv[1]);
 
 	/* set up the TCP Client socket  */
