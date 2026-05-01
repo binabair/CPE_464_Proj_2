@@ -117,8 +117,6 @@ int removeHandleBySocket(int socketNum){
     return -1;
 }
 
-
-
 //lookup handle name
 bool lookUpHandle (char * handleName){
     for (int i = 0; i < globalTable.count; i++){
@@ -128,7 +126,6 @@ bool lookUpHandle (char * handleName){
     }
     return false;
 }
-
 
 //getting the valid handles for %L
 int getHandleCount(){
