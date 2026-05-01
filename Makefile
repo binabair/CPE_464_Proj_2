@@ -12,11 +12,11 @@ SERVER_OBJS = $(COMMON_OBJS) handleTable.o
 
 all:   cclient server
 
-cclient: cclientPollCopy.c $(OBJS)
-	$(CC) $(CFLAGS) -o cclient cclientPollCopy.c  $(OBJS) $(LIBS)
+cclient: cclientPollCopy.c $(CLIENT_OBJS)
+	$(CC) $(CFLAGS) -o cclient cclientPollCopy.c  $(CLIENT_OBJS) $(LIBS)
 
-server: serverPollCopy.c $(OBJS)
-	$(CC) $(CFLAGS) -o server serverPollCopy.c $(OBJS) $(LIBS)
+server: serverPollCopy.c $(SERVER_OBJS)
+	$(CC) $(CFLAGS) -o server serverPollCopy.c $(SERVER_OBJS) $(LIBS)
 	
 .c.o:
 	gcc -c $(CFLAGS) $< -o $@

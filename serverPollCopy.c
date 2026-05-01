@@ -178,14 +178,7 @@ void processFlag5(int clientSocket, uint8_t *dataBuffer, int recvLen){
     int senderLen = dataBuffer[index];
     index++;
 
-    char sender[256];
-    for (int i = 0; i < senderLen; i++){
-        sender[i] = dataBuffer[index];
-        index++;
-    }
-    sender[senderLen] = '\0';
-
-    int destCount = dataBuffer[index];
+    index += senderLen;
     index++;
 
     int destLen = dataBuffer[index];
@@ -214,12 +207,7 @@ void processFlag6(int clientSocket, uint8_t *dataBuffer, int recvLen){
     int senderLen = dataBuffer[index];
     index++;
 
-    char sender[256];
-    for (int i = 0; i < senderLen; i++){
-        sender[i] = dataBuffer[index];
-        index++;
-    }
-    sender[senderLen] = '\0';
+    index += senderLen;
 
     int destCount = dataBuffer[index];
     index++;

@@ -604,7 +604,7 @@ void checkArgs(int argc, char * argv[])
 
 
 void initClient(int socketNum, int handleLen, char * handle){
-    char data[2+handleLen]; //flag + handle len + handle
+    uint8_t data[2+handleLen]; //flag + handle len + handle
     data[0] = 1;
     data[1] = handleLen;
 
@@ -658,6 +658,8 @@ int main(int argc, char * argv[]){
     addToPollSet(socketNum); //the server
 
     initClient(socketNum, strlen(myHandle), myHandle);
+    printf("$: ");
+    fflush(stdout);
     clientControl(socketNum, myHandle);
 	
 	return 0;
