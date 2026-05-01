@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 	
 	portNumber = checkArgs(argc, argv);
 	
-    globalTable = createHandleTable(10);
+    initHandleTable(10);
 	//create the server socket
 	mainServerSocket = tcpServerSetup(portNumber);
 

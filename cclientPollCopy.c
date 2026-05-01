@@ -627,18 +627,15 @@ void initClient(int socketNum, int handleLen, char * handle){
 int main(int argc, char * argv[]){
 	int socketNum = 0; //socket descriptor
 	checkArgs(argc, argv);
-
-    char myHandle[101];
+    char myHandle[100];
     strcpy(myHandle, argv[1]);
 
 	/* set up the TCP Client socket  */
 	socketNum = tcpClientSetup(argv[2], argv[3], DEBUG_FLAG);
-
     setupPollSet();
     addToPollSet(socketNum); //the server
 
     initClient(socketNum, strlen(myHandle), myHandle);
-
     clientControl(socketNum, myHandle);
 	
 	return 0;

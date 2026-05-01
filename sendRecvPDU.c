@@ -19,11 +19,11 @@
 int sendPDU(int clientSocket, uint8_t * dataBuffer, int lengthOfData){ //returns the number of bytes sent
     int sent = 0; //actual amount of data sent
     int pduLength = lengthOfData + 2;
-    uint8_t *pduBuff = malloc(pduLength);
-    
-    if (pduBuff == NULL){
-        perror("malloc error");
-        exit(-1);
+    uint8_t pduBuff[1402];
+
+    if (pduLength > 1402) {
+        fprintf(stderr, "PDU too large\n");
+        return -1;
     }
 
     uint16_t netOrderLen = htons(pduLength); 
@@ -37,7 +37,6 @@ int sendPDU(int clientSocket, uint8_t * dataBuffer, int lengthOfData){ //returns
         exit(-1);
     }
 
-    free(pduBuff);
     return sent;
 }
 

@@ -30,27 +30,26 @@ typedef struct {
     int count;
 } HandleTable;
 
-//make it
-HandleTable createHandleTable(int size) {
-    HandleTable currentTable;
-    currentTable.capacity = size;
-    currentTable.count = 0;
+HandleTable globalTable;
 
-    currentTable.entries = malloc(size * sizeof(HandleEntry));
-    if (currentTable.entries == NULL){
+//make it
+void initHandleTable(int size) {
+    globalTable.capacity = size;
+    globalTable.count = 0;
+    globalTable.entries = malloc(size * sizeof(HandleEntry));
+
+    if (globalTable.entries == NULL) {
         perror("malloc failed");
         exit(1);
     }
 
-    //initialize to prevent weird stuff
-    for (int i = 0; i < currentTable.capacity; i++){
-        currentTable.entries[i].valid = 0;
-        currentTable.entries[i].socketNum = -1;
-        currentTable.entries[i].handleName[0] = '\0';
+    for (int i = 0; i < globalTable.capacity; i++) {
+        globalTable.entries[i].valid = 0;
+        globalTable.entries[i].socketNum = -1;
+        globalTable.entries[i].handleName[0] = '\0';
     }
-
-    return currentTable;
 }
+
 
 //add - returns -1 on failure, 0 on success
 int addHandleEntry(char *handleName, int socketNum){
