@@ -30,6 +30,7 @@
 
 #define MAXBUF 1024
 #define DEBUG_FLAG 1
+#define MAX_HANDLE 100
 
 int listMode = 0;
 int listCountRemaining = 0;
@@ -69,35 +70,99 @@ void clientControl(int serverSocket, char * myHandle){
 void processMsgFromServer(int socketNum){
     uint8_t buffer[MAXBUF];
     int recvBytes = recvPDU(socketNum, buffer, MAXBUF);
-    uint8_t flag = buffer[0];
 
     if (recvBytes == 0){
-        printf("Server has terminated\n");
+        printf("Server Terminated\n");
         exit(-1);
     }else if (recvBytes < 0){
         perror("recv call");
         exit(-1);
     } 
 
+    uint8_t flag = buffer[0];
+
     switch(flag){
-        case 4:
-            // incoming broadcast message exact parse depends on your %B packet format
-            
-            printf("Received broadcast packet\n");
+        case 4: {
+            int index = 1;
+            int senderLen = buffer[index];
+            index++;
+
+            char sender[256];
+            for (int i = 0; i < senderLen; i++){
+                sender[i] = buffer[index];
+                index++;
+            }
+            sender[senderLen] = '\0';
+
+            char *message = (char *)&buffer[index];
+
+            printf("\n%s: %s\n", sender, message);
+            printf("$: ");
+            fflush(stdout);
             break;
+        }
 
         case 5: {
-            // incoming %M message
-            // exact parse depends on whether server forwards
-            // full original packet or strips destination info
-            printf("Received message packet\n");
+            int index = 1;
+            int senderLen = buffer[index];
+            index++;
+
+            char sender[256];
+            for (int i = 0; i < senderLen; i++){
+                sender[i] = buffer[index];
+                index++;
+            }
+            sender[senderLen] = '\0';
+
+            int destCount = buffer[index];
+            index++;
+
+            for (int h = 0; h < destCount; h++){
+                int destLen = buffer[index];
+                index++;
+
+                for (int i = 0; i < destLen; i++){
+                    index++;
+                }
+            }
+
+            char *message = (char *)&buffer[index];
+
+            printf("\n%s: %s\n", sender, message);
+            printf("$: ");
+            fflush(stdout);
             break;
         }
 
         case 6: {
-            // incoming %C message
-            // same note as flag 5
-            printf("Received multicast packet\n");
+            int index = 1;
+            int senderLen = buffer[index];
+            index++;
+
+            char sender[256];
+            for (int i = 0; i < senderLen; i++){
+                sender[i] = buffer[index];
+                index++;
+            }
+            sender[senderLen] = '\0';
+
+            int destCount = buffer[index];
+            index++;
+
+            for (int h = 0; h < destCount; h++){
+                int destLen = buffer[index];
+                index++;
+
+                for (int i = 0; i < destLen; i++){
+                    index++;
+                }
+            }
+
+            char *message = (char *)&buffer[index];
+
+            printf("\n%s: %s\n", sender, message);
+            printf("$: ");
+            fflush(stdout);
             break;
         }
 
@@ -112,6 +177,8 @@ void processMsgFromServer(int socketNum){
             badHandle[badHandleLen] = '\0';
 
             printf("Client with handle %s does not exist.\n", badHandle);
+            printf("$: ");
+            fflush(stdout);
             break;
         }
 
@@ -124,7 +191,7 @@ void processMsgFromServer(int socketNum){
             numHandles = ntohl(numHandlesNet);
 
             listMode = 1;
-            listCountRemaining = numHandles;
+            listCountRemaining = (int)numHandles;
 
             printf("Number of clients: %u\n", numHandles);
             break;
@@ -152,10 +219,14 @@ void processMsgFromServer(int socketNum){
             // %L finished
             listMode = 0;
             listCountRemaining = 0;
+            printf("$: ");
+            fflush(stdout);
             break;
 
         default:
             printf("Unknown flag %d received from server\n", flag);
+            printf("$: ");
+            fflush(stdout);
             break;
     }
 
@@ -165,33 +236,40 @@ void processMsgFromServer(int socketNum){
 void processStdin(int socketNum, char * myHandle){
     uint8_t buffer[MAXBUF];   //data buffer
     int sendLen = 0;        //amount of data to send
-    int sent = 0;            //actual amount of data sent
 
     sendLen = readFromStdin(buffer);
 
-    //string of if statements pulled from the depths
-	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
-		mCall(buffer, socketNum, myHandle);    //put message together and send to server in each one in the specific way that it needs to 
-
-	}else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
-		bCall((char *)buffer, socketNum, myHandle);
-	}else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
-		cCall(buffer, socketNum, myHandle);
-	}else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
-		lCall(socketNum);
-	}
-
-    //sendLen = readFromStdin(buffer);
-    //printf("read: %s string len: %d (including null)\n", buffer, sendLen);
-    
-    if (sent < 0)
-    {
-        perror("send call");
-        exit(-1);
+    if (sendLen <= 1){
+        printf("Invalid command\n");
+        printf("$: ");
+        fflush(stdout);
+        return;
+    }
+    if (buffer[0] != '%'){
+        printf("Invalid command\n");
+        printf("$: ");
+        fflush(stdout);
+        return;
     }
 
-    printf("Socket:%d: Sent, Length: %d msg: %s\n", socketNum, sent, buffer);
-    
+    //string of if statements pulled from the depths
+	if((buffer[1] == 'm') || (buffer[1] == 'M')){ //%M handle1 Hello how are you
+		mCall(buffer, socketNum, myHandle);
+	}
+    else if ((buffer[1] == 'b') || (buffer[1] == 'B')){
+		bCall((char *)buffer, socketNum, myHandle);
+	}
+    else if ((buffer[1] == 'c') || (buffer[1] == 'C')){
+		cCall(buffer, socketNum, myHandle);
+	}
+    else if ((buffer[1] == 'l') || (buffer[1] == 'L')){
+		lCall(socketNum);
+	}
+    else {
+    printf("Invalid command\n");
+    printf("$: ");
+    fflush(stdout);
+    }  
 }
 
 //%M - send to specific destination, %B - broadcast, %C - send to some, not all,
@@ -210,16 +288,40 @@ void mCall(char * input, int serverSocket, char * myHandle){
     int i = 2;  // skip %M, also set i for the loops
 
     for (; input[i] == ' '; i++);
+    
+    // parse destination handle with length check
+    int tempLen = 0;
+    int start = i;
 
-    // parse destination handle
-    for (; input[i] != ' ' && input[i] != '\0' && destLen < 99; i++) {
-        destHandle[destLen++] = input[i];
-    }
-    destHandle[destLen] = '\0';
-
-    if (input[i] == ' ') {
+    // first pass: measure full handle length
+    while (input[i] != ' ' && input[i] != '\0') {
+        tempLen++;
         i++;
     }
+
+    if (tempLen > MAX_HANDLE) {
+        printf("Invalid handle, handle longer than 100 characters\n");
+        printf("$: ");
+        fflush(stdout);
+        return;
+    }
+
+    if (tempLen == 0) {
+        printf("Invalid command format\n");
+        printf("$: ");
+        fflush(stdout);
+        return;
+    }
+
+    // second pass: copy safely
+    for (int j = 0; j < tempLen; j++) {
+        destHandle[j] = input[start + j];
+    }
+    destHandle[tempLen] = '\0';
+
+    destLen = tempLen;
+
+    for (; input[i] == ' '; i++);
 
     // get message
     for (; input[i] != '\0' && msgLen < 199; i++) {
@@ -322,6 +424,8 @@ void cCall(char *input, int serverSocket, char *myHandle){
         i++;
     } else {
         printf("Invalid number of handles for %%C\n");
+        printf("$: ");
+        fflush(stdout);
         return;
     }
 
@@ -329,23 +433,42 @@ void cCall(char *input, int serverSocket, char *myHandle){
 
     // parse each destination handle
     for (int h = 0; h < numHandles; h++) {
-        int len = 0;
+        int tempLen = 0;
+        int start = i;
 
-        for ( ; input[i] != ' ' && input[i] != '\0' && len < 99; i++) { //drop each one in at correct handle, int the array of them
-            destHandles[h][len] = input[i];
-            len++;
+        // measure full handle length
+        while (input[i] != ' ' && input[i] != '\0') {
+            tempLen++;
+            i++;
         }
-        destHandles[h][len] = '\0';
-        destLens[h] = len; //add the length of each handle respectively
 
-        if (len == 0) {  //some bullshit happened
-            printf("Missing destination handle in %%C\n"); 
+        if (tempLen > MAX_HANDLE) {
+            printf("Invalid handle, handle longer than 100 characters\n");
+            printf("$: ");
+            fflush(stdout);
             return;
         }
+
+        if (tempLen == 0) {
+            printf("Missing destination handle in %%C\n");
+            printf("$: ");
+            fflush(stdout);
+            return;
+        }
+
+        // copy handle
+        for (int j = 0; j < tempLen; j++) {
+            destHandles[h][j] = input[start + j];
+        }
+        destHandles[h][tempLen] = '\0'; //add in len and the null pointers
+        destLens[h] = tempLen;
+
 
         if (h < numHandles - 1) {
             if (input[i] == '\0') {
                 printf("Not enough destination handles for %%C\n");
+                printf("$: ");
+                fflush(stdout);
                 return;
             }
 
@@ -373,8 +496,7 @@ void cCall(char *input, int serverSocket, char *myHandle){
         index++;
     }
 
-    payload[index] = (uint8_t) numHandles;
-    index++;
+    payload[index] = (uint8_t) numHandles; index++;
 
     for (int h = 0; h < numHandles; h++) {
         payload[index] = (uint8_t) destLens[h];
@@ -412,20 +534,19 @@ void lCall(int serverSocket){
 
 int readFromStdin(uint8_t * buffer)
 {
-	char aChar = 0;
+	int aChar = 0;
 	int inputLen = 0;     
     
     //do print the $: first, then call poll cause poll with take over everything and not let it print
 	
 	printf("$: "); //fancy fancy
+    fflush(stdout);
 	
 	// Important you don't input more characters than you have space 
-	buffer[0] = '\0';
-	printf("Enter data: ");
-	while (inputLen < (MAXBUF - 1) && aChar != '\n')
+	while (inputLen < (MAXBUF - 1) && aChar != '\n' && aChar != EOF)
 	{
 		aChar = getchar();
-		if (aChar != '\n')
+		if (aChar != '\n' && aChar != EOF)
 		{
 			buffer[inputLen] = aChar;
 			inputLen++;
@@ -434,6 +555,12 @@ int readFromStdin(uint8_t * buffer)
 	
 	// Null terminate the string
 	buffer[inputLen] = '\0';
+
+    // flush extra input if too long
+    if (aChar != '\n' && aChar != EOF) {
+        while ((aChar = getchar()) != '\n' && aChar != EOF);
+    }
+
 	inputLen++;
 	
 	return inputLen;
@@ -444,9 +571,13 @@ void checkArgs(int argc, char * argv[])
 	/* check command line arguments  */
 	if (argc != 4)
 	{
-		printf("usage: %s host-name port-number \n", argv[0]);
+		printf("usage: %s handle host-name port-number \n", argv[0]);
 		exit(1);
 	}
+    if ((int)strlen(argv[1]) > MAX_HANDLE) {
+        fprintf(stderr, "Invalid handle, handle longer than 100 characters: %s\n", argv[1]);
+        exit(1);
+    }
 }
 
 
@@ -454,7 +585,6 @@ void initClient(int socketNum, int handleLen, char * handle){
     char data[2+handleLen]; //flag + handle len + handle
     data[0] = 1;
     data[1] = handleLen;
-    int handleIndex = 0;
 
     for (int i = 0; i < handleLen; i++){
         data[i+2] = handle[i];
@@ -470,14 +600,20 @@ void initClient(int socketNum, int handleLen, char * handle){
     int recvBytes = recvPDU(socketNum, buffer, MAXBUF);
 
     if (recvBytes == 0){
-        printf("Server has terminated\n");
+        printf("Server Terminated\n");
         exit(-1);
+    }
+
+    if (recvBytes < 0){
+    perror("recv call");
+    close(socketNum);
+    exit(-1);
     }
 
     int flag = buffer[0];
 
     if (flag == 3){
-        printf("Server rejected initial handle");
+        printf("Handle already in use: %s\n", handle);
         close(socketNum);
         exit(-1);
     }else if (flag == 2){
@@ -492,7 +628,8 @@ int main(int argc, char * argv[]){
 	int socketNum = 0; //socket descriptor
 	checkArgs(argc, argv);
 
-    char myHandle[100] = strcpy(myHandle, argv[1]);
+    char myHandle[101];
+    strcpy(myHandle, argv[1]);
 
 	/* set up the TCP Client socket  */
 	socketNum = tcpClientSetup(argv[2], argv[3], DEBUG_FLAG);

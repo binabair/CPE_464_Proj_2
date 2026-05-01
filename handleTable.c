@@ -130,32 +130,6 @@ bool lookUpHandle (char * handleName){
     return false;
 }
 
-//lookup socket number
-bool lookUpSocket (int socketNum){
-    if(!globalTable.entries){
-        createHandleTable(socketNum);
-    }
-    
-    for (int i = 0; i < globalTable.count; i++){
-        if ((globalTable.entries[i].socketNum == socketNum) && (globalTable.entries[i].valid == 1)){
-            return true;
-        }
-    }
-    return false;
-}
-
-//getting th handle by index for %L
-char *getHandleByIndex(int index){
-    if (index < 0 || index >= globalTable.count){
-        return NULL;
-    }
-
-    if (globalTable.entries[index].valid == 1){
-        return globalTable.entries[index].handleName;
-    }
-
-    return NULL;
-}
 
 //getting the valid handles for %L
 int getHandleCount(){
@@ -170,18 +144,6 @@ int getHandleCount(){
     return count;
 }
 
-//for broadcast
-int getSocketByIndex(int index){
-    if (index < 0 || index >= globalTable.count){
-        return -1;
-    }
-
-    if (globalTable.entries[index].valid == 1){
-        return globalTable.entries[index].socketNum;
-    }
-
-    return -1;
-}
 
 //get sockets from handles
 int getSocketByHandle(char *handleName){
@@ -191,6 +153,38 @@ int getSocketByHandle(char *handleName){
             return globalTable.entries[i].socketNum;
         }
     }
+    return -1;
+}
+
+//get a certain index of handle
+char *getNumberedValidHandle(int n){
+    int seen = 0;
+
+    for (int i = 0; i < globalTable.count; i++){
+        if (globalTable.entries[i].valid == 1){
+            if (seen == n){
+                return globalTable.entries[i].handleName;
+            }
+            seen++;
+        }
+    }
+
+    return NULL;
+}
+
+//get a certain index of socket
+int getNumberedValidSocket(int n){
+    int seen = 0;
+
+    for (int i = 0; i < globalTable.count; i++){
+        if (globalTable.entries[i].valid == 1){
+            if (seen == n){
+                return globalTable.entries[i].socketNum;
+            }
+            seen++;
+        }
+    }
+
     return -1;
 }
 

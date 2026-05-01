@@ -90,8 +90,6 @@ void addNewSocket(int mainServerSocket){
 void processClient(int clientSocket){
     uint8_t dataBuffer[MAXBUF];
     int recvOut = 0;
-    int messageLen = 0;
-    bool existingSocket;
 
     //now get the data from the client_socket
     recvOut = recvPDU(clientSocket, dataBuffer, MAXBUF);
@@ -130,10 +128,12 @@ void processClient(int clientSocket){
     else if (recvOut == 0) {
         printf("Socket %d: Connection closed by other side\n", clientSocket);
         removeFromPollSet(clientSocket);
+        removeHandleBySocket(clientSocket);
         close(clientSocket);
     }else{
         perror("recv call");
         removeFromPollSet(clientSocket);
+        removeHandleBySocket(clientSocket);
         close(clientSocket);
     }
 }
@@ -160,9 +160,11 @@ void processFlag1(int clientSocket, uint8_t *dataBuffer, int recvLen){
     }
 }
 
-void processFlag4(int clientSocket, uint8_t *dataBuffer, int recvLen){
-    for (int i = 0; i < globalTable.count; i++){
-        int otherSocket = getSocketByIndex(i);
+void processFlag4(int clientSocket, uint8_t *dataBuffer, int recvLen){ 
+    int validCount = getHandleCount();
+
+    for(int i = 0; i < validCount; i++){
+        int otherSocket = getNumberedValidSocket(i);
 
         if (otherSocket != -1 && otherSocket != clientSocket){
             sendPDU(otherSocket, dataBuffer, recvLen);
@@ -267,8 +269,12 @@ void processFlag10(int clientSocket){
     memcpy(&reply11[1], &countNet, sizeof(uint32_t));
     sendPDU(clientSocket, reply11, 5);
 
-    for (int i = 0; i < getHandleCount(); i++){
-        char *handle = getHandleAtIndex(i);
+    for (int i = 0; i < (int)count; i++){
+        char *handle = getNumberedValidHandle(i);
+        if (handle == NULL){
+            continue;
+        }
+
         int handleLen = strlen(handle);
 
         uint8_t reply12[256];
